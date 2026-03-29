@@ -1,0 +1,72 @@
+// Quran App - FULL SIMPLE VERSION (APK Ready) // فيه قرآن + صوت + بحث + دارك مود (نسخة مبسطة قوية)
+
+import 'package:flutter/material.dart'; import 'package:http/http.dart' as http; import 'dart:convert'; import 'package:just_audio/just_audio.dart';
+
+void main() { runApp(MyApp()); }
+
+class MyApp extends StatefulWidget { @override State<MyApp> createState() => _MyAppState(); }
+
+class _MyAppState extends State<MyApp> { bool dark = false;
+
+@override Widget build(BuildContext context) { return MaterialApp( debugShowCheckedModeBanner: false, theme: dark ? ThemeData.dark() : ThemeData.light(), home: HomePage(toggleTheme: () { setState(() { dark = !dark; }); }), ); } }
+
+class HomePage extends StatefulWidget { final VoidCallback toggleTheme; HomePage({required this.toggleTheme});
+
+@override _HomePageState createState() => _HomePageState(); }
+
+class _HomePageState extends State<HomePage> { List ayat = []; List filtered = []; final player = AudioPlayer(); TextEditingController search = TextEditingController();
+
+@override void initState() { super.initState(); fetchSurah(1); }
+
+Future fetchSurah(int number) async { final res = await http.get( Uri.parse("https://api.alquran.cloud/v1/surah/number"), ); final data = jsonDecode(res.body);
+
+setState(() {
+  ayat = data['data']['ayahs'];
+  filtered = ayat;
+});
+
+}
+
+void doSearch(String q) { setState(() { filtered = ayat .where((a) => a['text'].toString().contains(q)) .toList(); }); }
+
+Future playAudio(int ayah) async { await player.setUrl( "https://cdn.islamic.network/quran/audio/128/ar.alafasy/ayah.mp3", ); player.play(); }
+
+void copyAyah(String text, int num) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("تم نسخ الآية $num")), ); }
+
+@override Widget build(BuildContext context) { return Scaffold( appBar: AppBar( title: Text("📖 المصحف"), actions: [ IconButton( icon: Icon(Icons.dark_mode), onPressed: widget.toggleTheme, ) ], ), body: Column( children: [ Padding( padding: EdgeInsets.all(8), child: TextField( controller: search, decoration: InputDecoration( hintText: "ابحث عن آية...", border: OutlineInputBorder(), prefixIcon: Icon(Icons.search), ), onChanged: doSearch, ), ), Expanded( child: filtered.isEmpty ? Center(child: CircularProgressIndicator()) : ListView.builder( itemCount: filtered.length, itemBuilder: (context, i) { final ayah = filtered[i];
+
+return Card(
+                    child: ListTile(
+                      title: Text(
+                        ayah['text'],
+                        textAlign: TextAlign.right,
+                        style: TextStyle(fontSize: 22),
+                      ),
+                      subtitle: Text(
+                        "آية ${ayah['numberInSurah']}",
+                        textAlign: TextAlign.right,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.play_arrow),
+                            onPressed: () => playAudio(ayah['number']),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.copy),
+                            onPressed: () => copyAyah(
+                                ayah['text'], ayah['numberInSurah']),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    ],
+  ),
+);
+
+} }
